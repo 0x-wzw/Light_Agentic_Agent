@@ -2,9 +2,9 @@
 
 Minimal-but-production-shaped **Agentic Bot Factory** built with **Next.js App Router + TypeScript**.
 
-## What this implements
+## Overview
 
-`POST /api/run` executes the server-only pipeline:
+`POST /api/run` executes a server-only pipeline:
 
 1. Orchestrator
 2. Budget Gate (`$5` hard cap)
@@ -15,7 +15,22 @@ Minimal-but-production-shaped **Agentic Bot Factory** built with **Next.js App R
 7. Independent Auditors (spec/quality/risk/budget)
 8. Release Gate
 
-Artifacts are written to `./artifacts/<run_id>/`.
+All run outputs are written to artifacts under `./artifacts/<run_id>/`.
+
+---
+
+## Key Guarantees
+
+- **Budget policy**: hard cap of `$5` per run.
+- **Model ladder**: `openai:gpt-4o-mini` → `openai:gpt-4o` → `openai:gpt-5`.
+- **Strict tool scoping**: tool calls are validated against the intersection of:
+  - `task_spec.tools.mcp.allow`
+  - `bot_package.tools.mcp_scope.allow`
+  - per-skill `tools_allowed`
+- **Schema validation**: Ajv + Draft 2020-12 schemas for input and critical artifacts.
+- **Secret safety**: MCP auth is referenced by `auth_ref` only; tokens are resolved from env and not written to prompts/artifacts.
+
+---
 
 ## Setup
 
@@ -41,7 +56,19 @@ Artifacts are written to `./artifacts/<run_id>/`.
    npm run dev
    ```
 
-## Example request
+---
+
+## API
+
+### Endpoint
+
+`POST /api/run`
+
+### Request body
+
+Must match: `lib/schemas/task_spec.schema.json`.
+
+### Minimal example
 
 ```bash
 curl -X POST http://localhost:3000/api/run \
@@ -78,7 +105,29 @@ curl -X POST http://localhost:3000/api/run \
   }'
 ```
 
-## Artifact outputs
+### Response shape (compact)
+
+```json
+{
+  "run_id": "<uuid>",
+  "status": "pass|fail",
+  "final_artifact_ref": "artifacts/<run_id>/final_release.json",
+  "audit_refs": ["artifacts/<run_id>/audit_reports.json"],
+  "model_used": "openai:gpt-4o|openai:gpt-5|openai:gpt-4o-mini",
+  "estimated_cost_usd": 0.123456,
+  "artifact_refs": {
+    "task_spec": "artifacts/<run_id>/task_spec.json",
+    "super_agent": "artifacts/<run_id>/super_agent.json",
+    "preflight": "artifacts/<run_id>/preflight_report.json",
+    "bot_package": "artifacts/<run_id>/bot_package.json",
+    "worker_output": "artifacts/<run_id>/worker_output.json"
+  }
+}
+```
+
+---
+
+## Artifacts
 
 Each run writes:
 
@@ -91,24 +140,37 @@ Each run writes:
 - `final_release.json`
 - `tool_traces.jsonl` (when tools are called)
 
-under:
+Location:
 
 ```text
 artifacts/<run_id>/
 ```
 
-## MCP server configuration (local + remote)
+---
 
-MCP registry lives in `lib/mcp/registry.ts` and includes examples for:
+## MCP Configuration (Local + Remote)
 
-- **Local stdio transport** (e.g., filesystem MCP server)
+Registry: `lib/mcp/registry.ts`
+
+Supports both:
+
+- **Local stdio transport** (example: filesystem MCP server)
 - **Remote HTTPS transport**
 
-Each server entry uses:
+Each server entry includes:
 
 - `server_id`
 - `transport` (`stdio` or `https`)
-- `endpoint` (for https) OR `stdio.command`+`stdio.args`
-- `auth_ref` (maps to environment variable name)
+- `endpoint` (for https) **or** `stdio.command` + `stdio.args`
+- `auth_ref` (name of env var used for auth token resolution)
 
-Authentication is resolved in `lib/mcp/auth.ts` by env variable name only; tokens are never embedded into prompts or artifacts.
+Auth resolution: `lib/mcp/auth.ts`
+
+> `auth_ref` is resolved at runtime using environment variables. Raw secrets should never be included in prompts or artifacts.
+
+---
+
+## Notes
+
+- If `OPENAI_API_KEY` is not configured, LLM responses are simulated in `lib/runtime/llm.ts` to keep the pipeline operable for local scaffolding.
+- MCP tool execution is structured and currently stubbed in `lib/mcp/client.ts`, while preserving transport-specific shape and safety boundaries.
