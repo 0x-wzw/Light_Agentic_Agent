@@ -1,4 +1,4 @@
-export type MCPTransport = "stdio" | "https";
+export type MCPTransport = "stdio" | "https" | "deploy";
 
 export interface MCPServerConfig {
   server_id: string;
@@ -26,6 +26,11 @@ const registry: Record<string, MCPServerConfig> = {
     transport: "https",
     endpoint: "https://example-mcp-server.invalid/mcp",
     auth_ref: "MCP_TOKEN_REMOTE_DEFAULT"
+  },
+  deploy_server: {
+    server_id: "deploy_server",
+    transport: "deploy",
+    auth_ref: "DEPLOY_HOST"
   }
 };
 

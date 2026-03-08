@@ -5,17 +5,21 @@ import taskSpecSchema from "@/lib/schemas/task_spec.schema.json";
 import preflightReportSchema from "@/lib/schemas/preflight_report.schema.json";
 import botPackageSchema from "@/lib/schemas/bot_package.schema.json";
 import auditReportSchema from "@/lib/schemas/audit_report.schema.json";
+import deploySpecSchema from "@/lib/schemas/deploy_spec.schema.json";
+import deployResultSchema from "@/lib/schemas/deploy_result.schema.json";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
 
-type SchemaName = "taskSpec" | "preflight" | "botPackage" | "auditReport";
+type SchemaName = "taskSpec" | "preflight" | "botPackage" | "auditReport" | "deploySpec" | "deployResult";
 
 const validators: Record<SchemaName, ValidateFunction> = {
   taskSpec: ajv.compile(taskSpecSchema),
   preflight: ajv.compile(preflightReportSchema),
   botPackage: ajv.compile(botPackageSchema),
-  auditReport: ajv.compile(auditReportSchema)
+  auditReport: ajv.compile(auditReportSchema),
+  deploySpec: ajv.compile(deploySpecSchema),
+  deployResult: ajv.compile(deployResultSchema)
 };
 
 const formatError = (errors: ErrorObject[] | null | undefined): string => {
